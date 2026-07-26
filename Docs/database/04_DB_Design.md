@@ -89,3 +89,37 @@ The Vaultix database is divided into logical modules to improve maintainability,
 * First Normal Form (1NF)
 * Second Normal Form (2NF)
 * Third Normal Form (3NF)
+
+
+
+
+
+# Module 1 – User Management
+
+## Purpose
+
+The User Management module is responsible for authentication, user profile management, login sessions, trusted devices, and user preferences.
+
+## Tables
+
+### 1. users
+Stores user account information and login credentials.
+
+### 2. user_profiles
+Stores personal information about the user.
+
+### 3. user_sessions
+Stores login session history and active sessions.
+
+### 4. user_devices
+Stores trusted devices used by the user.
+
+### 5. user_preferences
+Stores user settings such as theme, language, and security preferences.
+
+## Relationships
+
+- One User has one User Profile.
+- One User can have many User Sessions.
+- One User can have many User Devices.
+- One User has one User Preferences record.
