@@ -1,4 +1,4 @@
-﻿package com.vaultix.security;
+package com.vaultix.security;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.*;
@@ -40,7 +40,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
                 }
 
                 if (deque.size() >= MAX_LOGIN_ATTEMPTS) {
-                    response.setStatus(HttpServletResponse.SC_TOO_MANY_REQUESTS);
+                    response.setStatus(429);
                     response.setHeader("Retry-After", String.valueOf(WINDOW_SECONDS));
                     response.setContentType("text/plain;charset=UTF-8");
                     response.getWriter().write("Too many login attempts. Please try again later.");
