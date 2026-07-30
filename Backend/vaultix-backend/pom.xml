@@ -25,7 +25,6 @@
     </properties>
 
     <dependencies>
-
         <!-- Core web layer: REST controllers, embedded Tomcat, Jackson -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -93,6 +92,11 @@
             <scope>runtime</scope>
         </dependency>
 
+        <!-- Actuator for production-ready features (health, metrics, etc.) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-actuator</artifactId>
+        </dependency>
     </dependencies>
 
     <build>
@@ -104,5 +108,4 @@
             </plugin>
         </plugins>
     </build>
-
 </project>
