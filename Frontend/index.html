@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vaultix - Enterprise Zero-Knowledge Secret Vault</title>
+    <meta name="description" content="Vaultix is an enterprise-grade digital identity and zero-knowledge vault platform for credentials, API keys, and confidential data.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="dark-theme">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Auth View -->
+    <div id="auth-screen" class="auth-wrapper">
+        <div class="auth-glass-card">
+            <div class="auth-header">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-shield-halved logo-icon"></i>
+                    <span class="logo-text">VAULTIX</span>
+                    <span class="badge-tag">ENTERPRISE</span>
+                </div>
+                <p class="auth-subtitle">Zero-Knowledge Security & Digital Identity Vault</p>
+            </div>
+
+            <!-- Tab Switcher -->
+            <div class="auth-tabs">
+                <button id="tab-login" class="auth-tab active" onclick="switchAuthTab('login')">Sign In</button>
+                <button id="tab-register" class="auth-tab" onclick="switchAuthTab('register')">Create Account</button>
+            </div>
+
+            <!-- Login Form -->
+            <form id="form-login" class="auth-form active" onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <label for="login-email"><i class="fa-regular fa-envelope"></i> Email Address</label>
+                    <input type="email" id="login-email" placeholder="admin@vaultix.io" required autocomplete="email">
+                </div>
+                <div class="input-group">
+                    <label for="login-password"><i class="fa-solid fa-lock"></i> Master Password</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="login-password" placeholder="••••••••••••" required autocomplete="current-password">
+                        <button type="button" class="btn-icon toggle-pwd" onclick="togglePasswordVisibility('login-password', this)"><i class="fa-regular fa-eye"></i></button>
+                    </div>
+                </div>
+                <button type="submit" id="btn-login-submit" class="btn-primary btn-full">
+                    <span>Unlock Vault</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="form-register" class="auth-form" onsubmit="handleRegister(event)">
+                <div class="input-group">
+                    <label for="reg-username"><i class="fa-regular fa-user"></i> Username</label>
+                    <input type="text" id="reg-username" placeholder="alex_vault" required autocomplete="username">
+                </div>
+                <div class="input-group">
+                    <label for="reg-email"><i class="fa-regular fa-envelope"></i> Email Address</label>
+                    <input type="email" id="reg-email" placeholder="alex@company.com" required autocomplete="email">
+                </div>
+                <div class="input-group">
+                    <label for="reg-password"><i class="fa-solid fa-key"></i> Master Password (Zero-Knowledge Key)</label>
+                    <div class="password-input-wrapper">
+                        <input type="password" id="reg-password" placeholder="At least 12 chars with symbols" required oninput="evaluatePasswordStrength(this.value)" autocomplete="new-password">
+                        <button type="button" class="btn-icon toggle-pwd" onclick="togglePasswordVisibility('reg-password', this)"><i class="fa-regular fa-eye"></i></button>
+                    </div>
+                    <div class="strength-meter">
+                        <div id="strength-bar" class="strength-bar"></div>
+                    </div>
+                    <span id="strength-label" class="strength-label">Password strength: Empty</span>
+                </div>
+                <div class="input-group">
+                    <label for="reg-confirm-password"><i class="fa-solid fa-lock"></i> Confirm Master Password</label>
+                    <input type="password" id="reg-confirm-password" placeholder="Repeat Master Password" required autocomplete="new-password">
+                </div>
+                <button type="submit" id="btn-reg-submit" class="btn-primary btn-full">
+                    <span>Initialize Zero-Knowledge Vault</span>
+                    <i class="fa-solid fa-shield-cat"></i>
+                </button>
+            </form>
+
+            <div class="auth-footer">
+                <i class="fa-solid fa-lock-keyhole"></i> End-to-End Encrypted via Client-Side WebCrypto (AES-256-GCM)
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Dashboard View -->
+    <div id="app-screen" class="app-layout hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="brand-logo">
+                    <i class="fa-solid fa-shield-halved logo-icon"></i>
+                    <span class="logo-text">VAULTIX</span>
+                </div>
+            </div>
+
+            <nav class="sidebar-nav">
+                <div class="nav-section-title">VAULT CATEGORIES</div>
+                <button class="nav-item active" data-category="ALL" onclick="filterCategory('ALL', this)">
+                    <i class="fa-solid fa-cubes"></i>
+                    <span>All Vault Items</span>
+                    <span id="badge-count-all" class="badge">0</span>
+                </button>
+                <button class="nav-item" data-category="FAVORITE" onclick="filterCategory('FAVORITE', this)">
+                    <i class="fa-solid fa-star"></i>
+                    <span>Favorites</span>
+                    <span id="badge-count-fav" class="badge">0</span>
+                </button>
+                <button class="nav-item" data-category="CREDENTIAL" onclick="filterCategory('CREDENTIAL', this)">
+                    <i class="fa-solid fa-key"></i>
+                    <span>Logins & Passwords</span>
+                </button>
+                <button class="nav-item" data-category="SECURE_NOTE" onclick="filterCategory('SECURE_NOTE', this)">
+                    <i class="fa-solid fa-note-sticky"></i>
+                    <span>Secure Notes</span>
+                </button>
+                <button class="nav-item" data-category="PAYMENT_CARD" onclick="filterCategory('PAYMENT_CARD', this)">
+                    <i class="fa-solid fa-credit-card"></i>
+                    <span>Payment Cards</span>
+                </button>
+                <button class="nav-item" data-category="API_KEY" onclick="filterCategory('API_KEY', this)">
+                    <i class="fa-solid fa-code"></i>
+                    <span>API Keys & Tokens</span>
+                </button>
+                <button class="nav-item" data-category="LICENSE" onclick="filterCategory('LICENSE', this)">
+                    <i class="fa-solid fa-certificate"></i>
+                    <span>Software Licenses</span>
+                </button>
+
+                <div class="nav-section-title" style="margin-top: 1.5rem;">SECURITY & TOOLS</div>
+                <button class="nav-item" data-category="GENERATOR" onclick="openGeneratorModal()">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>Secret Generator</span>
+                </button>
+                <button class="nav-item" data-category="AUDIT" onclick="switchViewTab('AUDIT', this)">
+                    <i class="fa-solid fa-clock-rotate-left"></i>
+                    <span>Audit Logs</span>
+                </button>
+                <button class="nav-item" data-category="TRASH" onclick="filterCategory('TRASH', this)">
+                    <i class="fa-solid fa-trash-can"></i>
+                    <span>Trash Bin</span>
+                </button>
+            </nav>
+
+            <div class="sidebar-user">
+                <div class="user-avatar" id="user-avatar-initials">VX</div>
+                <div class="user-info">
+                    <span class="user-name" id="display-user-email">user@vaultix.io</span>
+                    <span class="user-role"><i class="fa-solid fa-shield"></i> Encrypted Vault</span>
+                </div>
+                <button class="btn-icon" onclick="handleLogout()" title="Sign Out">
+                    <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Navbar Header -->
+            <header class="top-navbar">
+                <div class="search-bar">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="vault-search-input" placeholder="Search secrets, URLs, identifiers..." oninput="handleSearch(this.value)">
+                </div>
+
+                <div class="top-actions">
+                    <button class="btn-secondary" onclick="openGeneratorModal()">
+                        <i class="fa-solid fa-key"></i> Generator
+                    </button>
+                    <button class="btn-primary" onclick="openItemModal()">
+                        <i class="fa-solid fa-plus"></i> New Secret Item
+                    </button>
+                </div>
+            </header>
+
+            <!-- Main Content Container -->
+            <div id="content-vault" class="content-body">
+                <!-- Overview Stats Bar -->
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-icon purple"><i class="fa-solid fa-vault"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-total-items">0</span>
+                            <span class="stat-label">Total Vault Secrets</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon gold"><i class="fa-solid fa-star"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-fav-items">0</span>
+                            <span class="stat-label">Starred Items</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon green"><i class="fa-solid fa-lock-check"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value">AES-GCM-256</span>
+                            <span class="stat-label">Zero-Knowledge State</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Vault Items Section -->
+                <div class="section-header">
+                    <h2 id="current-view-title" class="section-title">All Vault Secrets</h2>
+                    <span id="items-count-indicator" class="subtitle-badge">0 items</span>
+                </div>
+
+                <!-- Vault Grid/List Container -->
+                <div id="vault-items-grid" class="vault-grid">
+                    <!-- Items rendered dynamically via JavaScript -->
+                </div>
+
+                <!-- Empty State Placeholder -->
+                <div id="empty-vault-state" class="empty-state hidden">
+                    <div class="empty-icon"><i class="fa-solid fa-box-open"></i></div>
+                    <h3>No Vault Items Found</h3>
+                    <p>Start securing your digital identity by adding credentials, API keys, or secure notes.</p>
+                    <button class="btn-primary" onclick="openItemModal()"><i class="fa-solid fa-plus"></i> Create First Secret</button>
+                </div>
+            </div>
+
+            <!-- Audit Logs Container -->
+            <div id="content-audit" class="content-body hidden">
+                <div class="section-header">
+                    <h2 class="section-title">Security & Audit Activity Logs</h2>
+                    <p class="section-desc">Real-time log of login attempts, vault creation, and access events.</p>
+                </div>
+                <div class="audit-table-wrapper">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>Timestamp</th>
+                                <th>Event Type</th>
+                                <th>Description</th>
+                                <th>IP Address</th>
+                            </tr>
+                        </thead>
+                        <tbody id="audit-logs-tbody">
+                            <!-- Rendered dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal: Vault Item Editor (Create / Edit) -->
+    <div id="modal-item" class="modal-backdrop hidden">
+        <div class="modal-glass">
+            <div class="modal-header">
+                <h3 id="modal-item-title"><i class="fa-solid fa-shield-plus"></i> Add Secret Item</h3>
+                <button class="btn-icon" onclick="closeItemModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <form id="form-item" onsubmit="saveVaultItem(event)">
+                <input type="hidden" id="item-id">
+                <div class="input-group">
+                    <label for="item-category">Category</label>
+                    <select id="item-category" required onchange="adaptItemFields(this.value)">
+                        <option value="CREDENTIAL">Credential / Login</option>
+                        <option value="SECURE_NOTE">Secure Note</option>
+                        <option value="PAYMENT_CARD">Payment Card</option>
+                        <option value="API_KEY">API Key / Developer Secret</option>
+                        <option value="LICENSE">Software License</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="item-title">Title / Name</label>
+                    <input type="text" id="item-title" placeholder="e.g. GitHub Production Key or AWS Console" required>
+                </div>
+                <div class="input-group" id="field-identifier-group">
+                    <label for="item-identifier" id="label-identifier">Username / Identity</label>
+                    <input type="text" id="item-identifier" placeholder="e.g. user@domain.com">
+                </div>
+                <div class="input-group" id="field-url-group">
+                    <label for="item-url">Website URL</label>
+                    <input type="url" id="item-url" placeholder="https://github.com">
+                </div>
+                <div class="input-group">
+                    <label for="item-secret" id="label-secret">Secret Value (Encrypted client-side before save)</label>
+                    <div class="password-input-wrapper">
+                        <textarea id="item-secret" rows="3" placeholder="Enter sensitive password, secure note, or API token..." required></textarea>
+                        <button type="button" class="btn-icon toggle-pwd" onclick="toggleTextareaVisibility('item-secret', this)"><i class="fa-regular fa-eye"></i></button>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-secondary" onclick="closeItemModal()">Cancel</button>
+                    <button type="submit" class="btn-primary"><i class="fa-solid fa-lock"></i> Encrypt & Save Secret</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal: Password Generator -->
+    <div id="modal-generator" class="modal-backdrop hidden">
+        <div class="modal-glass modal-sm">
+            <div class="modal-header">
+                <h3><i class="fa-solid fa-wand-magic-sparkles"></i> Secret Generator</h3>
+                <button class="btn-icon" onclick="closeGeneratorModal()"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="generator-body">
+                <div class="gen-output-box">
+                    <input type="text" id="gen-output" readonly value="...">
+                    <button class="btn-secondary" onclick="copyGeneratedSecret()"><i class="fa-regular fa-copy"></i> Copy</button>
+                </div>
+
+                <div class="input-group">
+                    <label>Length: <span id="gen-len-val">20</span> characters</label>
+                    <input type="range" id="gen-length" min="8" max="64" value="20" oninput="document.getElementById('gen-len-val').innerText = this.value; generateSecret();">
+                </div>
+
+                <div class="gen-options">
+                    <label><input type="checkbox" id="gen-uppercase" checked onchange="generateSecret()"> Uppercase (A-Z)</label>
+                    <label><input type="checkbox" id="gen-lowercase" checked onchange="generateSecret()"> Lowercase (a-z)</label>
+                    <label><input type="checkbox" id="gen-numbers" checked onchange="generateSecret()"> Numbers (0-9)</label>
+                    <label><input type="checkbox" id="gen-symbols" checked onchange="generateSecret()"> Special Symbols (!@#$)</label>
+                </div>
+
+                <button class="btn-primary btn-full" onclick="generateSecret()"><i class="fa-solid fa-arrows-rotate"></i> Regenerate Secret</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Module Loading -->
+    <script src="js/crypto.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

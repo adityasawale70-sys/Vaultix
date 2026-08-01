@@ -3,7 +3,6 @@ package com.vaultix.entity;
 import jakarta.persistence.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -21,14 +20,14 @@ public class User {
     @Column(nullable = false, unique = true, length = 150)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
+    @Column(nullable = false, length = 255)
     private String passwordHash;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "account_status", nullable = false)
     private AccountStatus accountStatus = AccountStatus.PENDING;
 
-    @Column(name = "email_verified", nullable = false)
+    @Column(nullable = false)
     private Boolean emailVerified = false;
 
     @Column(name = "email_verification_token_hash", length = 255)
@@ -61,7 +60,6 @@ public class User {
     @Column(name = "password_reset_expires_at")
     private LocalDateTime passwordResetExpiresAt;
 
-    // DB owns these via DEFAULT CURRENT_TIMESTAMP / ON UPDATE CURRENT_TIMESTAMP
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -76,11 +74,22 @@ public class User {
     @Column(name = "deleted_at")
     private LocalDateTime deletedAt;
 
+    // --- NEW FIELDS FOR MFA TOTP SUPPORT ---
+    @Column(name = "salt", length = 128)
+    private String salt;
+
+    @Column(name = "totp_secret", length = 255)
+    private String totpSecret;
+
+    @Column(name = "totp_enabled", nullable = false)
+    private Boolean totpEnabled = false;
+
+    // --- END NEW FIELDS ---
+
     public User() {
     }
 
     // --- Getters & setters ---
-
     public Long getUserId() {
         return userId;
     }
@@ -231,5 +240,30 @@ public class User {
 
     public void setDeletedAt(LocalDateTime deletedAt) {
         this.deletedAt = deletedAt;
+    }
+
+    // --- NEW GETTERS & SETTERS FOR MFA TOTP SUPPORT ---
+    public String getTotpSecret() {
+        return totpSecret;
+    }
+
+    public void setTotpSecret(String totpSecret) {
+        this.totpSecret = totpSecret;
+    }
+
+    public Boolean getTotpEnabled() {
+        return totpEnabled;
+    }
+
+    public void setTotpEnabled(Boolean totpEnabled) {
+        this.totpEnabled = totpEnabled;
+    }
+
+    public String getSalt() {
+        return salt;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
 }

@@ -6,6 +6,7 @@ public class RegisterResponse {
 
     private Long userId;
     private String message;
+    private String salt; // optional per-user salt (base64)
 
     public RegisterResponse() {
     }
@@ -15,10 +16,17 @@ public class RegisterResponse {
         this.message = message;
     }
 
+    public RegisterResponse(Long userId, String message, String salt) {
+        this.userId = userId;
+        this.message = message;
+        this.salt = salt;
+    }
+
     public static RegisterResponse fromEntity(User user) {
         return new RegisterResponse(
                 user.getUserId(),
-                "Registration successful"
+                "Registration successful",
+                user.getSalt()
         );
     }
 
@@ -36,5 +44,13 @@ public class RegisterResponse {
 
     public void setMessage(String message) {
         this.message = message;
+    }
+
+    public String getSalt() {
+        return salt;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
 }

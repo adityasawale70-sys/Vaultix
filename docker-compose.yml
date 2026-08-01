@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  vaultix-db:
+    image: mysql:8.0
+    container_name: vaultix-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: Vaultix@Root123!
+      MYSQL_DATABASE: vaultix_db
+      MYSQL_USER: vaultix_user
+      MYSQL_PASSWORD: Vaultix@User123!
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./Database/schema:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  vaultix-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vaultix-backend
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      DB_URL: jdbc:mysql://vaultix-db:3306/vaultix_db?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+      DB_USERNAME: vaultix_user
+      DB_PASSWORD: Vaultix@User123!
+      JWT_SECRET: Vaultix$ecretKeyForHMAC_SHA256_MinLen32!
+      JWT_ACCESS_EXP_MS: 900000
+      JWT_REFRESH_EXP_DAYS: 7
+    depends_on:
+      vaultix-db:
+        condition: service_healthy
+
+  vaultix-frontend:
+    image: nginx:alpine
+    container_name: vaultix-frontend
+    restart: always
+    ports:
+      - "80:80"
+    volumes:
+      - ./Frontend:/usr/share/nginx/html:ro
+
+volumes:
+  db_data:

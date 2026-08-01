@@ -1,14 +1,16 @@
 package com.vaultix.service;
 
-import com.vaultix.dto.LoginRequest;
-import com.vaultix.dto.LoginResponse;
-import com.vaultix.dto.RegisterRequest;
-import com.vaultix.dto.RegisterResponse;
+import com.vaultix.dto.*;
 
 public interface AuthService {
 
-    RegisterResponse register(RegisterRequest request);
+    RegisterResponse       register(RegisterRequest request);
 
-    LoginResponse login(LoginRequest request);
+    LoginResponse          login(LoginRequest request);
 
+    RefreshTokenResponse   refreshToken(RefreshTokenRequest request);
+
+    void                   logout(LogoutRequest request);
+
+    MeResponse             getCurrentUser(String email);
 }

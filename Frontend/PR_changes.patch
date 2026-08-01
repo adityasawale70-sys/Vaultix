@@ -1,0 +1,289 @@
+*** Begin Patch for review: api.js & crypto.js
+
+*** api.js (proposed changes)
+--- a/Frontend/js/api.js
++++ b/Frontend/js/api.js
+@@
+-const API_BASE_URL = (window.__VAULTIX_CONFIG__ && window.__VAULTIX_CONFIG__.API_BASE_URL) || (location.hostname === 'localhost' ? 'http://localhost:8080/api' : 'https://api.vaultix.example.com/api');
++// API base URL: configurable at runtime via window.__VAULTIX_CONFIG__.API_BASE_URL
++// Falls back to localhost for development, otherwise a secure HTTPS default for production.
++const API_BASE_URL = (window.__VAULTIX_CONFIG__ && window.__VAULTIX_CONFIG__.API_BASE_URL) || (location.hostname === 'localhost' ? 'http://localhost:8080/api' : 'https://api.vaultix.example.com/api');
+@@
+-class VaultixApi {
+-
+-    // Guard promise to prevent concurrent refresh requests
+-    static refreshPromise = null;
++class VaultixApi {
++
++    // Guard promise to prevent concurrent refresh requests
++    static refreshPromise = null;
+@@
+-        const token = VaultixApi.getAccessToken();
+-        if (token) {
+-            headers['Authorization'] = `******;
+-        }
++        const token = VaultixApi.getAccessToken();
++        if (token) {
++            // Set bearer token when available
++            headers['Authorization'] = `Bearer ${token}`;
++        }
+@@
+-            if (refreshed) {
+-                headers['Authorization'] = `******;
+-                response = await fetch(url, { ...options, headers });
+-            } else {
++            if (refreshed) {
++                // After refresh, read the new access token and retry
++                const newToken = VaultixApi.getAccessToken();
++                if (newToken) headers['Authorization'] = `Bearer ${newToken}`;
++                response = await fetch(url, { ...options, headers });
++            } else {
+@@
+-    static async refreshAccessToken() {
+-        try {
+-            const refreshToken = VaultixApi.getRefreshToken();
+-            if (!refreshToken) return false;
+-
+-            const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+-                method: 'POST',
+-                headers: { 'Content-Type': 'application/json' },
+-                body: JSON.stringify({ refreshToken })
+-            });
+-
+-            if (res.ok) {
+-                const data = await res.json();
+-                VaultixApi.setTokens(data.accessToken, null);
+-                return true;
+-            }
+-            return false;
+-        } catch (e) {
+-            return false;
+-        }
+-    }
++    static async refreshAccessToken() {
++        // Prevent concurrent refresh calls: reuse in-flight promise
++        if (VaultixApi.refreshPromise) {
++            return VaultixApi.refreshPromise;
++        }
++
++        VaultixApi.refreshPromise = (async () => {
++            try {
++                const refreshToken = VaultixApi.getRefreshToken();
++                if (!refreshToken) return false;
++
++                const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
++                    method: 'POST',
++                    headers: { 'Content-Type': 'application/json' },
++                    body: JSON.stringify({ refreshToken })
++                });
++
++                if (res.ok) {
++                    const data = await res.json();
++                    // Update access token; keep refresh token handling per backend policy
++                    VaultixApi.setTokens(data.accessToken, null);
++                    return true;
++                }
++                return false;
++            } catch (e) {
++                return false;
++            } finally {
++                VaultixApi.refreshPromise = null;
++            }
++        })();
++
++        return VaultixApi.refreshPromise;
++    }
+*** End api.js patch
+
+
+*** crypto.js (proposed changes)
+--- a/Frontend/js/crypto.js
++++ b/Frontend/js/crypto.js
+@@
+-    static async deriveKey(masterPassword, saltString) {
+-        const encoder = new TextEncoder();
+-        const passwordBytes = encoder.encode(masterPassword);
+-        const saltBytes = encoder.encode(saltString);
+-
+-        // Import raw master password as secret key material
+-        const baseKey = await window.crypto.subtle.importKey(
+-            'raw',
+-            passwordBytes,
+-            { name: 'PBKDF2' },
+-            false,
+-            ['deriveKey']
+-        );
+-
+-        // Derive AES-GCM 256-bit key using PBKDF2 with 100,000 iterations
+-        return await window.crypto.subtle.deriveKey(
+-            {
+-                name: 'PBKDF2',
+-                salt: saltBytes,
+-                iterations: 100000,
+-                hash: 'SHA-256'
+-            },
+-            baseKey,
+-            { name: 'AES-GCM', length: 256 },
+-            false,
+-            ['encrypt', 'decrypt']
+-        );
+-    }
++    // Backwards-compatible deriveKey (keeps existing behavior)
++    static async deriveKey(masterPassword, saltString) {
++        const encoder = new TextEncoder();
++        const passwordBytes = encoder.encode(masterPassword);
++        const saltBytes = encoder.encode(saltString);
++
++        // Import raw master password as secret key material
++        const baseKey = await window.crypto.subtle.importKey(
++            'raw',
++            passwordBytes,
++            { name: 'PBKDF2' },
++            false,
++            ['deriveKey']
++        );
++
++        // Derive AES-GCM 256-bit key using PBKDF2 with 100,000 iterations
++        const key = await window.crypto.subtle.deriveKey(
++            {
++                name: 'PBKDF2',
++                salt: saltBytes,
++                iterations: 100000,
++                hash: 'SHA-256'
++            },
++            baseKey,
++            { name: 'AES-GCM', length: 256 },
++            false,
++            ['encrypt', 'decrypt']
++        );
++
++        // Try to clear sensitive buffers (best-effort; JS GC still applies)
++        if (passwordBytes && typeof passwordBytes.fill === 'function') passwordBytes.fill(0);
++        if (saltBytes && typeof saltBytes.fill === 'function') saltBytes.fill(0);
++
++        return key;
++    }
++
++    // Generate a cryptographically-random salt and return as base64
++    static generateSaltBase64() {
++        const salt = window.crypto.getRandomValues(new Uint8Array(16));
++        return VaultixCrypto.arrayBufferToBase64(salt.buffer);
++    }
++
++    // New recommended deriveKey that accepts a base64 salt and configurable iterations
++    static async deriveKeyFromPassword(masterPassword, saltBase64, iterations = 300000) {
++        const encoder = new TextEncoder();
++        const passwordBytes = encoder.encode(masterPassword);
++        const saltBytes = new Uint8Array(VaultixCrypto.base64ToArrayBuffer(saltBase64));
++
++        // Import raw master password as secret key material
++        const baseKey = await window.crypto.subtle.importKey(
++            'raw',
++            passwordBytes,
++            { name: 'PBKDF2' },
++            false,
++            ['deriveKey']
++        );
++
++        // Derive AES-GCM 256-bit key using PBKDF2
++        const key = await window.crypto.subtle.deriveKey(
++            {
++                name: 'PBKDF2',
++                salt: saltBytes,
++                iterations: iterations,
++                hash: 'SHA-256'
++            },
++            baseKey,
++            { name: 'AES-GCM', length: 256 },
++            false,
++            ['encrypt', 'decrypt']
++        );
++
++        // Best-effort zeroing
++        if (passwordBytes && typeof passwordBytes.fill === 'function') passwordBytes.fill(0);
++        if (saltBytes && typeof saltBytes.fill === 'function') saltBytes.fill(0);
++
++        return key;
++    }
+@@
+-    static async encrypt(plaintext, key) {
+-        const encoder = new TextEncoder();
+-        const dataBytes = encoder.encode(plaintext);
+-
+-        // Generate 12-byte random Initialization Vector (IV)
+-        const iv = window.crypto.getRandomValues(new Uint8Array(12));
+-
+-        const ciphertextBuffer = await window.crypto.subtle.encrypt(
+-            { name: 'AES-GCM', iv: iv },
+-            key,
+-            dataBytes
+-        );
+-
+-        return {
+-            encryptedPayload: VaultixCrypto.arrayBufferToBase64(ciphertextBuffer),
+-            iv: VaultixCrypto.arrayBufferToBase64(iv.buffer)
+-        };
+-    }
++    // Optional aad (string) binds additional authenticated data to the ciphertext
++    static async encrypt(plaintext, key, aad = null) {
++        const encoder = new TextEncoder();
++        const dataBytes = encoder.encode(plaintext);
++
++        // Generate 12-byte random Initialization Vector (IV)
++        const iv = window.crypto.getRandomValues(new Uint8Array(12));
++
++        const algo = { name: 'AES-GCM', iv: iv };
++        if (aad) algo.additionalData = encoder.encode(aad);
++
++        const ciphertextBuffer = await window.crypto.subtle.encrypt(
++            algo,
++            key,
++            dataBytes
++        );
++
++        return {
++            encryptedPayload: VaultixCrypto.arrayBufferToBase64(ciphertextBuffer),
++            iv: VaultixCrypto.arrayBufferToBase64(iv.buffer)
++        };
++    }
+@@
+-    static async decrypt(encryptedPayloadBase64, ivBase64, key) {
+-        try {
+-            const ciphertextBuffer = VaultixCrypto.base64ToArrayBuffer(encryptedPayloadBase64);
+-            const ivBuffer = VaultixCrypto.base64ToArrayBuffer(ivBase64);
+-
+-            const decryptedBuffer = await window.crypto.subtle.decrypt(
+-                { name: 'AES-GCM', iv: new Uint8Array(ivBuffer) },
+-                key,
+-                ciphertextBuffer
+-            );
+-
+-            const decoder = new TextDecoder();
+-            return decoder.decode(decryptedBuffer);
+-        } catch (err) {
+-            console.error("Decryption failed:", err);
+-            return "[Decryption Error: Invalid Master Password]";
+-        }
+-    }
++    static async decrypt(encryptedPayloadBase64, ivBase64, key, aad = null) {
++        try {
++            const ciphertextBuffer = VaultixCrypto.base64ToArrayBuffer(encryptedPayloadBase64);
++            const ivBuffer = VaultixCrypto.base64ToArrayBuffer(ivBase64);
++
++            const algo = { name: 'AES-GCM', iv: new Uint8Array(ivBuffer) };
++            if (aad) algo.additionalData = new TextEncoder().encode(aad);
++
++            const decryptedBuffer = await window.crypto.subtle.decrypt(
++                algo,
++                key,
++                ciphertextBuffer
++            );
++
++            const decoder = new TextDecoder();
++            return decoder.decode(decryptedBuffer);
++        } catch (err) {
++            console.error("Decryption failed:", err);
++            return "[Decryption Error: Invalid Master Password]";
++        }
++    }
+*** End crypto.js patch
