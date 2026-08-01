@@ -19,6 +19,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -51,7 +52,7 @@ public class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.userId").value(99L))
-                .andExpect(jsonPath("$.email").value("newuser@vaultix.io"));
+                .andExpect(jsonPath("$.message").value("Registration successful"));
     }
 
     @Test
@@ -68,6 +69,8 @@ public class AuthControllerTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.accessToken").value("sample.jwt.access.token"))
-                .andExpect(jsonPath("$.refreshToken").value("sample_refresh_token_string"));
+                // refresh token is set as an HttpOnly cookie and removed from JSON body
+                .andExpect(jsonPath("$.refreshToken").doesNotExist())
+                .andExpect(header().string("Set-Cookie", org.hamcrest.Matchers.containsString("vaultix_refresh_token=")));
     }
 }
