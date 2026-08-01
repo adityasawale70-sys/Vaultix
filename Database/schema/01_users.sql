@@ -26,6 +26,8 @@ CREATE TABLE users (
     username VARCHAR(50) NOT NULL UNIQUE,
     email VARCHAR(150) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
+    -- Per-user cryptographic salt (base64) used for client-side key derivation
+    salt VARCHAR(128) NULL,
 
     -- Account Status
     account_status ENUM(

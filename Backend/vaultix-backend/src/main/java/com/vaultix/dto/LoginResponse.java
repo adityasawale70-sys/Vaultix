@@ -4,6 +4,7 @@ public class LoginResponse {
 
     private String accessToken;
     private String refreshToken;
+    private String salt; // optional per-user salt (base64)
 
     public LoginResponse() {
     }
@@ -11,6 +12,12 @@ public class LoginResponse {
     public LoginResponse(String accessToken, String refreshToken) {
         this.accessToken = accessToken;
         this.refreshToken = refreshToken;
+    }
+
+    public LoginResponse(String accessToken, String refreshToken, String salt) {
+        this.accessToken = accessToken;
+        this.refreshToken = refreshToken;
+        this.salt = salt;
     }
 
     public String getAccessToken() {
@@ -27,5 +34,13 @@ public class LoginResponse {
 
     public void setRefreshToken(String refreshToken) {
         this.refreshToken = refreshToken;
+    }
+
+    public String getSalt() {
+        return salt;
+    }
+
+    public void setSalt(String salt) {
+        this.salt = salt;
     }
 }
