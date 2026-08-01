@@ -98,8 +98,8 @@ public class SecurityConfig {
             .sessionManagement(session ->
                     session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authenticationProvider(authenticationProvider())
-            .addFilterBefore(rateLimitFilter,           JwtAuthenticationFilter.class)
             .addFilterBefore(jwtAuthenticationFilter,   UsernamePasswordAuthenticationFilter.class)
+            .addFilterBefore(rateLimitFilter,           JwtAuthenticationFilter.class)
             .authorizeHttpRequests(auth -> auth
                     // Public auth endpoints — no JWT needed
                     .requestMatchers(

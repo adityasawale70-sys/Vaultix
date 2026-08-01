@@ -15,18 +15,19 @@ class VaultixApi {
         return localStorage.getItem('vaultix_access_token');
     }
 
+    // Refresh token is now stored as an HttpOnly cookie — cannot be read from JS.
     static getRefreshToken() {
-        return localStorage.getItem('vaultix_refresh_token');
+        return null; // kept for backwards compatibility but always returns null
     }
 
     static setTokens(accessToken, refreshToken) {
         if (accessToken) localStorage.setItem('vaultix_access_token', accessToken);
-        if (refreshToken) localStorage.setItem('vaultix_refresh_token', refreshToken);
+        // refresh token intentionally not stored in localStorage (HttpOnly cookie used)
     }
 
     static clearTokens() {
         localStorage.removeItem('vaultix_access_token');
-        localStorage.removeItem('vaultix_refresh_token');
+        // Can't clear HttpOnly cookie from JS — server will be asked to clear it on logout
         localStorage.removeItem('vaultix_salt');
     }
 
@@ -45,18 +46,20 @@ class VaultixApi {
 
         const config = {
             ...options,
-            headers
+            headers,
+            // Ensure cookies (HttpOnly refresh cookie) are sent for refresh/logout flows
+            credentials: 'include'
         };
 
         let response = await fetch(url, config);
 
         // Auto token refresh if 401 Unauthorized occurs
-        if (response.status === 401 && VaultixApi.getRefreshToken()) {
+        if (response.status === 401) {
             const refreshed = await VaultixApi.refreshAccessToken();
             if (refreshed) {
                 const newToken = VaultixApi.getAccessToken();
                 if (newToken) headers['Authorization'] = 'Bearer ' + newToken;
-                response = await fetch(url, { ...options, headers });
+                response = await fetch(url, { ...options, headers, credentials: 'include' });
             } else {
                 VaultixApi.clearTokens();
                 window.location.reload();
@@ -80,18 +83,16 @@ class VaultixApi {
 
         VaultixApi.refreshPromise = (async () => {
             try {
-                const refreshToken = VaultixApi.getRefreshToken();
-                if (!refreshToken) return false;
-
+                // Send the refresh request — cookie will be sent via credentials: 'include'
                 const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ refreshToken })
+                    credentials: 'include'
                 });
 
                 if (res.ok) {
                     const data = await res.json();
-                    // Update access token; keep refresh token handling per backend policy
+                    // Update access token; refresh token is stored in HttpOnly cookie by the server
                     VaultixApi.setTokens(data.accessToken, null);
                     return true;
                 }
@@ -121,20 +122,16 @@ class VaultixApi {
             method: 'POST',
             body: JSON.stringify({ email, password })
         });
-        VaultixApi.setTokens(data.accessToken, data.refreshToken);
+        // Server sets refresh token as an HttpOnly cookie. Only store access token here.
+        VaultixApi.setTokens(data.accessToken, null);
         // Store salt (non-secret) if server returns it so the client can derive keys consistently.
         if (data && data.salt) { localStorage.setItem('vaultix_salt', data.salt); }
         return data;
     }
 
     static async logout() {
-        const refreshToken = VaultixApi.getRefreshToken();
-        if (refreshToken) {
-            await VaultixApi.request('/auth/logout', {
-                method: 'POST',
-                body: JSON.stringify({ refreshToken })
-            }).catch(() => {});
-        }
+        // Ask server to revoke the refresh cookie/token; cookie is sent via credentials
+        await VaultixApi.request('/auth/logout', { method: 'POST' }).catch(() => {});
         VaultixApi.clearTokens();
     }
 

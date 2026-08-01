@@ -4,54 +4,83 @@ import com.vaultix.dto.TotpSetupRequest;
 import com.vaultix.entity.User;
 import com.vaultix.repository.UserRepository;
 import com.vaultix.service.TotpService;
-import dev.samstevens.totp.Totp;
-import dev.samstevens.totp.exceptions.InvalidKeyException;
-import dev.samstevens.totp.qr.QrData;
-import dev.samstevens.totp.qr.QrDataImpl;
-import dev.samstevens.totp.util.Base32;
+import org.apache.commons.codec.binary.Base32;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.time.Instant;
-import java.time.temporal.ChronoUnit;
-import java.util.UUID;
+import java.time.Duration;
 
 @Service
 public class TotpServiceImpl implements TotpService {
 
     private final UserRepository userRepository;
-    private final Totp totp;
+    private static final int TIME_STEP_SECONDS = 30;
+    private static final int TOTP_DIGITS = 6;
 
-    public TotpServiceImpl(UserRepository userRepository, Totp totp) {
+    public TotpServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
-        this.totp = totp;
     }
 
     @Override
     public String generateTotpSecret() {
-        return Base32.random();
+        // Generate 20 random bytes and encode as base32 (160 bits -> good for SHA1)
+        byte[] bytes = new byte[20];
+        new SecureRandom().nextBytes(bytes);
+        Base32 b32 = new Base32();
+        return b32.encodeToString(bytes).replace("=","");
     }
 
     @Override
     public String generateTotpUri(String username, String secret) {
-        QrData data = new QrDataImpl.Builder()
-                .label(username)
-                .secret(secret)
-                .issuer("Vaultix")
-                .algorithm(QrDataImpl.Algorithm.SHA1)
-                .digits(6)
-                .period(30)
-                .build();
-        return totp.generateUri(data);
+        // Build otpauth URI compatible with authenticator apps
+        // otpauth://totp/{issuer}:{account}?secret={secret}&issuer={issuer}&algorithm=SHA1&digits=6&period=30
+        String issuer = "Vaultix";
+        String account = username;
+        String uri = String.format("otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30",
+                urlEncode(issuer), urlEncode(account), urlEncode(secret), urlEncode(issuer));
+        return uri;
+    }
+
+    private static String urlEncode(String s) {
+        try {
+            return java.net.URLEncoder.encode(s, java.nio.charset.StandardCharsets.UTF_8.toString()).replace("+", "%20");
+        } catch (Exception e) {
+            return s;
+        }
     }
 
     @Override
     public boolean verifyTotp(String secret, String code) {
         try {
-            return totp.validateCode(secret, code);
-        } catch (InvalidKeyException e) {
+            byte[] keyBytes = new Base32().decode(secret);
+            SecretKeySpec keySpec = new SecretKeySpec(keyBytes, "HmacSHA1");
+            long currentCounter = Instant.now().getEpochSecond() / TIME_STEP_SECONDS;
+            for (int i = -1; i <= 1; i++) {
+                long counter = currentCounter + i;
+                int generated = generateHotp(keySpec, counter);
+                if (String.format("%06d", generated).equals(code)) return true;
+            }
+            return false;
+        } catch (Exception e) {
             return false;
         }
+    }
+
+    private int generateHotp(SecretKeySpec keySpec, long counter) throws Exception {
+        byte[] counterBytes = ByteBuffer.allocate(8).putLong(counter).array();
+        Mac mac = Mac.getInstance("HmacSHA1");
+        mac.init(keySpec);
+        byte[] hmac = mac.doFinal(counterBytes);
+        int offset = hmac[hmac.length - 1] & 0x0F;
+        int binary = ((hmac[offset] & 0x7f) << 24) | ((hmac[offset + 1] & 0xff) << 16)
+                | ((hmac[offset + 2] & 0xff) << 8) | (hmac[offset + 3] & 0xff);
+        int otp = binary % (int) Math.pow(10, TOTP_DIGITS);
+        return otp;
     }
 
     @Override
@@ -61,7 +90,9 @@ public class TotpServiceImpl implements TotpService {
 
     @Override
     public String getBase32SecretFromBase64(String base64Secret) {
-        return base64Secret;
+        // Convert base64 to base32
+        byte[] decoded = java.util.Base64.getDecoder().decode(base64Secret);
+        return new Base32().encodeToString(decoded).replace("=","");
     }
 
     @Transactional
