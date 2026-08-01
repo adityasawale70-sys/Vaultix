@@ -19,8 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.Base64;
 import java.util.HexFormat;
 import java.util.UUID;
 
@@ -57,8 +59,18 @@ public class AuthServiceImpl implements AuthService {
         User user = new User();
         user.setUsername(request.getUsername());
         user.setEmail(request.getEmail());
-        // Persist client-provided salt (if any) for key derivation metadata
-        if (request.getSalt() != null) user.setSalt(request.getSalt());
+        // Persist client-provided salt (if any) for key derivation metadata.
+        // Prefer server-generated salt when client does not provide one.
+        if (request.getSalt() != null) {
+            user.setSalt(request.getSalt());
+        } else {
+            // Generate a secure random 16-byte salt and encode as URL-safe Base64 without padding
+            byte[] saltBytes = new byte[16];
+            SecureRandom sr = new SecureRandom();
+            sr.nextBytes(saltBytes);
+            String saltBase64 = Base64.getUrlEncoder().withoutPadding().encodeToString(saltBytes);
+            user.setSalt(saltBase64);
+        }
 
         User savedUser = userService.registerUser(user, request.getPassword());
         log.info("New user registered: userId={}, email={}", savedUser.getUserId(), savedUser.getEmail());

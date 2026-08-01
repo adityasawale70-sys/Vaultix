@@ -14,4 +14,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     boolean existsByUsername(String username);
 
     boolean existsByEmail(String email);
+
+    // Find users missing a stored per-user salt (null only)
+    java.util.List<com.vaultix.entity.User> findAllBySaltIsNull();
 }
