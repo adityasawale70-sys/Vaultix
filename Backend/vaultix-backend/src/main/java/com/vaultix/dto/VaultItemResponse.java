@@ -19,6 +19,9 @@ public class VaultItemResponse {
     private Boolean isFavorite;
     private Boolean isTrashed;
     private Set<String> tags;
+    private Long folderId;
+    private String folderName;
+    private String folderColorCode;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -35,6 +38,11 @@ public class VaultItemResponse {
         res.setIsFavorite(item.getIsFavorite());
         res.setIsTrashed(item.getIsTrashed());
         res.setTags(item.getTags());
+        if (item.getFolder() != null) {
+            res.setFolderId(item.getFolder().getFolderId());
+            res.setFolderName(item.getFolder().getName());
+            res.setFolderColorCode(item.getFolder().getColorCode());
+        }
         res.setCreatedAt(item.getCreatedAt());
         res.setUpdatedAt(item.getUpdatedAt());
         return res;
@@ -128,6 +136,30 @@ public class VaultItemResponse {
 
     public void setTags(Set<String> tags) {
         this.tags = tags;
+    }
+
+    public Long getFolderId() {
+        return folderId;
+    }
+
+    public void setFolderId(Long folderId) {
+        this.folderId = folderId;
+    }
+
+    public String getFolderName() {
+        return folderName;
+    }
+
+    public void setFolderName(String folderName) {
+        this.folderName = folderName;
+    }
+
+    public String getFolderColorCode() {
+        return folderColorCode;
+    }
+
+    public void setFolderColorCode(String folderColorCode) {
+        this.folderColorCode = folderColorCode;
     }
 
     public LocalDateTime getCreatedAt() {

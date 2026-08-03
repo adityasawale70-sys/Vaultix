@@ -37,9 +37,10 @@ public class VaultItemController {
             @AuthenticationPrincipal UserDetails userDetails,
             @RequestParam(required = false) VaultCategory category,
             @RequestParam(required = false) Boolean favorite,
-            @RequestParam(required = false) String query) {
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) Long folderId) {
         List<VaultItemResponse> response = vaultItemService.getAllVaultItems(
-                userDetails.getUsername(), category, favorite, query);
+                userDetails.getUsername(), category, favorite, query, folderId);
         return ResponseEntity.ok(response);
     }
 

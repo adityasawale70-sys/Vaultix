@@ -136,12 +136,13 @@ class VaultixApi {
     }
 
     // ─── Vault Endpoints ─────────────────────────────────────────────
-    static async getVaultItems(category = null, favorite = false, query = null) {
+    static async getVaultItems(category = null, favorite = false, query = null, folderId = null) {
         let url = '/vault';
         const params = new URLSearchParams();
         if (category && category !== 'ALL' && category !== 'FAVORITE' && category !== 'TRASH') params.append('category', category);
         if (favorite || category === 'FAVORITE') params.append('favorite', 'true');
         if (query) params.append('query', query);
+        if (folderId) params.append('folderId', folderId);
 
         if ([...params].length > 0) url += `?${params.toString()}`;
         return VaultixApi.request(url);

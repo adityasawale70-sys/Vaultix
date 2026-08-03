@@ -5,6 +5,8 @@
 let activeMasterKey = null;
 let currentCategory = 'ALL';
 let currentVaultItems = [];
+let currentFolders = [];
+let currentFolderId = null;
 let searchQuery = '';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -183,6 +185,128 @@ function showAppScreen(email) {
     document.getElementById('user-avatar-initials').innerText = email.substring(0, 2).toUpperCase();
 
     loadVaultItems();
+    loadFolders();
+}
+
+// ─── Folder Management ─────────────────────────────────────────────
+async function loadFolders() {
+    try {
+        currentFolders = await VaultixApi.getFolders();
+        renderFolders();
+        populateFolderSelectors();
+        updateStats();
+    } catch (err) {
+        showToast("Failed to load folders: " + err.message, "error");
+    }
+}
+
+function renderFolders() {
+    const container = document.getElementById('folders-list');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (!currentFolders || currentFolders.length === 0) {
+        container.innerHTML = '<div class="folder-empty-state">No folders yet. Create one to start organizing your vault.</div>';
+        return;
+    }
+
+    currentFolders.forEach(folder => {
+        const card = document.createElement('div');
+        card.className = 'folder-card';
+        card.innerHTML = `
+            <div class="folder-card-main">
+                <div class="folder-icon"><i class="fa-solid fa-folder"></i></div>
+                <div>
+                    <div class="folder-name">${escapeHtml(folder.name)}</div>
+                    <div class="folder-meta">${escapeHtml(folder.colorCode || '#6366f1')} · personal workspace</div>
+                </div>
+            </div>
+            <div class="folder-card-actions">
+                <button class="btn-secondary" onclick="selectFolder(${folder.folderId})">View</button>
+                <button class="btn-icon" onclick="deleteFolder(${folder.folderId})" title="Delete folder">
+                    <i class="fa-solid fa-trash-can"></i>
+                </button>
+            </div>
+        `;
+        container.appendChild(card);
+    });
+}
+
+async function createFolderFromInput() {
+    const input = document.getElementById('folder-name-input');
+    const name = input ? input.value.trim() : '';
+
+    if (!name) {
+        showToast("Please enter a folder name.", "error");
+        return;
+    }
+
+    try {
+        await VaultixApi.createFolder(name);
+        showToast("Folder created successfully.", "success");
+        if (input) input.value = '';
+        await loadFolders();
+    } catch (err) {
+        showToast("Failed to create folder: " + err.message, "error");
+    }
+}
+
+async function deleteFolder(id) {
+    if (!confirm("Delete this folder?")) return;
+
+    try {
+        await VaultixApi.deleteFolder(id);
+        showToast("Folder deleted.", "success");
+        if (currentFolderId === id) {
+            currentFolderId = null;
+        }
+        await loadFolders();
+        loadVaultItems();
+    } catch (err) {
+        showToast("Failed to delete folder: " + err.message, "error");
+    }
+}
+
+function populateFolderSelectors() {
+    const filterSelect = document.getElementById('folder-filter-select');
+    const itemFolderSelect = document.getElementById('item-folder');
+    if (!filterSelect || !itemFolderSelect) return;
+
+    filterSelect.innerHTML = '<option value="">All folders</option>';
+    itemFolderSelect.innerHTML = '<option value="">Unassigned</option>';
+
+    currentFolders.forEach(folder => {
+        const option = document.createElement('option');
+        option.value = folder.folderId;
+        option.textContent = folder.name;
+        if (folder.folderId === currentFolderId) option.selected = true;
+        filterSelect.appendChild(option);
+
+        const itemOption = document.createElement('option');
+        itemOption.value = folder.folderId;
+        itemOption.textContent = folder.name;
+        itemFolderSelect.appendChild(itemOption);
+    });
+}
+
+function handleFolderFilterChange(folderId) {
+    currentFolderId = folderId ? Number(folderId) : null;
+    loadVaultItems();
+}
+
+function clearFolderFilter() {
+    currentFolderId = null;
+    const filterSelect = document.getElementById('folder-filter-select');
+    if (filterSelect) filterSelect.value = '';
+    loadVaultItems();
+}
+
+function selectFolder(folderId) {
+    currentFolderId = folderId;
+    const filterSelect = document.getElementById('folder-filter-select');
+    if (filterSelect) filterSelect.value = folderId;
+    loadVaultItems();
 }
 
 // ─── Vault Items Management & Category Filtering ──────────────────
@@ -191,7 +315,7 @@ async function loadVaultItems() {
         if (currentCategory === 'TRASH') {
             currentVaultItems = await VaultixApi.getTrashedItems();
         } else {
-            currentVaultItems = await VaultixApi.getVaultItems(currentCategory, false, searchQuery);
+            currentVaultItems = await VaultixApi.getVaultItems(currentCategory, false, searchQuery, currentFolderId);
         }
         renderVaultGrid();
         updateStats();
@@ -226,6 +350,7 @@ function renderVaultGrid() {
                 <div class="item-card-info">
                     <div class="item-card-title">${escapeHtml(item.title)}</div>
                     <div class="item-card-user">${escapeHtml(item.usernameOrIdentifier || 'No identifier')}</div>
+                    ${item.folderName ? `<div class="item-card-folder">Folder: ${escapeHtml(item.folderName)}</div>` : ''}
                 </div>
             </div>
             <div class="item-card-actions">
@@ -262,9 +387,11 @@ function getCategoryIcon(cat) {
 function updateStats() {
     const total = currentVaultItems.length;
     const favs = currentVaultItems.filter(i => i.isFavorite).length;
+    const folders = currentFolders.length;
 
     document.getElementById('stat-total-items').innerText = total;
     document.getElementById('stat-fav-items').innerText = favs;
+    document.getElementById('stat-folder-count').innerText = folders;
     document.getElementById('badge-count-all').innerText = total;
     document.getElementById('badge-count-fav').innerText = favs;
 }
@@ -359,7 +486,9 @@ function openItemModal(item = null) {
     document.getElementById('modal-item').classList.remove('hidden');
     document.getElementById('form-item').reset();
     document.getElementById('item-id').value = '';
-
+    const folderSelect = document.getElementById('item-folder');
+    if (folderSelect) folderSelect.value = '';
+ 
     if (item) {
         document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Edit Secret Item';
         document.getElementById('item-id').value = item.vaultItemId;
@@ -367,6 +496,7 @@ function openItemModal(item = null) {
         document.getElementById('item-title').value = item.title;
         document.getElementById('item-identifier').value = item.usernameOrIdentifier || '';
         document.getElementById('item-url').value = item.url || '';
+        if (folderSelect) folderSelect.value = item.folderId || '';
         decryptItemSecretToField(item);
     } else {
         document.getElementById('modal-item-title').innerHTML = '<i class="fa-solid fa-shield-plus"></i> Add Secret Item';
@@ -409,6 +539,7 @@ async function saveVaultItem(e) {
     // Encrypt secret payload locally before transmission (Zero-Knowledge)
     const { encryptedPayload, iv } = await VaultixCrypto.encrypt(secretPlaintext, activeMasterKey);
 
+    const folderId = document.getElementById('item-folder').value || null;
     const payload = {
         category,
         title,
@@ -416,7 +547,8 @@ async function saveVaultItem(e) {
         url,
         encryptedPayload,
         iv,
-        isFavorite: false
+        isFavorite: false,
+        folderId: folderId ? Number(folderId) : null
     };
 
     try {

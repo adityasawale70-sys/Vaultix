@@ -10,6 +10,7 @@ Vaultix is a minimal zero-knowledge client-backed secrets manager and vault proj
 - JWT access tokens and HttpOnly refresh token cookie pattern for safer refresh handling
 - Rate-limited login endpoint to mitigate brute-force attempts
 - TOTP MFA support (server-side implementation included)
+- Folder-based vault organization with lightweight workspace folders
 - REST API for vault items, folders, sharing, and audit logs
 
 ---

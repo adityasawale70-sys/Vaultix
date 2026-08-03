@@ -201,12 +201,42 @@
                         </div>
                     </div>
                     <div class="stat-card">
+                        <div class="stat-icon blue"><i class="fa-solid fa-folder-open"></i></div>
+                        <div class="stat-info">
+                            <span class="stat-value" id="stat-folder-count">0</span>
+                            <span class="stat-label">Folders</span>
+                        </div>
+                    </div>
+                    <div class="stat-card">
                         <div class="stat-icon green"><i class="fa-solid fa-lock-check"></i></div>
                         <div class="stat-info">
                             <span class="stat-value">AES-GCM-256</span>
                             <span class="stat-label">Zero-Knowledge State</span>
                         </div>
                     </div>
+                </div>
+
+                <div class="folder-panel">
+                    <div class="folder-panel-header">
+                        <div>
+                            <h3 class="folder-panel-title">Workspace folders</h3>
+                            <p class="folder-panel-subtitle">Create lightweight folders to keep your vault organized.</p>
+                        </div>
+                        <div class="folder-input-row">
+                            <input type="text" id="folder-name-input" placeholder="New folder name">
+                            <button class="btn-secondary" onclick="createFolderFromInput()"><i class="fa-solid fa-folder-plus"></i> Create</button>
+                        </div>
+                        <div class="folder-filter-row">
+                            <label for="folder-filter-select">Filter by Folder</label>
+                            <div class="folder-filter-controls">
+                                <select id="folder-filter-select" onchange="handleFolderFilterChange(this.value)">
+                                    <option value="">All folders</option>
+                                </select>
+                                <button type="button" class="btn-icon" onclick="clearFolderFilter()" title="Clear folder filter"><i class="fa-solid fa-xmark"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="folders-list" class="folders-list"></div>
                 </div>
 
                 <!-- Vault Items Section -->
@@ -276,6 +306,12 @@
                 <div class="input-group">
                     <label for="item-title">Title / Name</label>
                     <input type="text" id="item-title" placeholder="e.g. GitHub Production Key or AWS Console" required>
+                </div>
+                <div class="input-group">
+                    <label for="item-folder">Folder</label>
+                    <select id="item-folder">
+                        <option value="">Unassigned</option>
+                    </select>
                 </div>
                 <div class="input-group" id="field-identifier-group">
                     <label for="item-identifier" id="label-identifier">Username / Identity</label>

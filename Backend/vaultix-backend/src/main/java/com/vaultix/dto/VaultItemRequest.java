@@ -32,6 +32,8 @@ public class VaultItemRequest {
 
     private Set<String> tags;
 
+    private Long folderId;
+
     public VaultCategory getCategory() {
         return category;
     }
@@ -102,5 +104,13 @@ public class VaultItemRequest {
 
     public void setTags(Set<String> tags) {
         this.tags = tags;
+    }
+
+    public Long getFolderId() {
+        return folderId;
+    }
+
+    public void setFolderId(Long folderId) {
+        this.folderId = folderId;
     }
 }

@@ -12,7 +12,7 @@ public interface VaultItemService {
 
     VaultItemResponse getVaultItemById(String userEmail, Long id);
 
-    List<VaultItemResponse> getAllVaultItems(String userEmail, VaultCategory category, Boolean isFavorite, String query);
+    List<VaultItemResponse> getAllVaultItems(String userEmail, VaultCategory category, Boolean isFavorite, String query, Long folderId);
 
     VaultItemResponse updateVaultItem(String userEmail, Long id, VaultItemRequest request);
 
